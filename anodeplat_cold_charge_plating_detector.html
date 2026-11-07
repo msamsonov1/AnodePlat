@@ -1,0 +1,1447 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AnodePlat: Solid-State Battery Cold-Charge Plating Detector</title>
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            space: {
+              950: '#03050a',
+              900: '#060a12',
+              850: '#0a101d',
+              800: '#111a2e',
+              700: '#1b2946'
+            },
+            cyanGlow: '#06b6d4',
+            violetGlow: '#8b5cf6',
+            amberGlow: '#f59e0b',
+            emeraldGlow: '#10b981',
+            roseGlow: '#ef4444'
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- MathJax v3 Pre-Configuration & Script -->
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']]
+      },
+      svg: { fontCache: 'global' }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+    body {
+      background-color: #03050a;
+      color: #e2e8f0;
+      font-family: 'Inter', sans-serif;
+      overflow-x: hidden;
+    }
+    .formula-box {
+      background: #030712;
+      border: 1px solid #1f293d;
+      border-radius: 0.5rem;
+      padding: 0.75rem 1rem;
+      color: #67e8f9;
+      font-family: serif;
+      overflow-x: auto;
+    }
+    /* Custom scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #060a12;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1e293b;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #334155;
+    }
+    .hud-card {
+      background: rgba(10, 16, 29, 0.75);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(30, 41, 59, 0.7);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between selection:bg-cyan-500 selection:text-black">
+
+  <!-- Header Navigation -->
+  <header class="border-b border-gray-800 bg-space-950/80 sticky top-0 z-50 backdrop-blur-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        <!-- Brand & Soliciation Code -->
+        <div class="flex items-center space-x-3">
+          <div class="w-9 h-9 rounded-lg bg-gradient-to-tr from-cyan-600 via-blue-600 to-violet-600 p-[1.5px] flex items-center justify-center shadow-lg shadow-cyan-950/50">
+            <div class="w-full h-full bg-space-950 rounded-[7px] flex items-center justify-center">
+              <i data-lucide="zap" class="w-5 h-5 text-cyan-400"></i>
+            </div>
+          </div>
+          <div>
+            <div class="flex items-center space-x-2">
+              <span class="font-bold text-lg tracking-tight text-white font-mono">AnodePlat</span>
+              <span class="text-xs font-semibold px-2 py-0.5 rounded bg-cyan-950/80 text-cyan-400 border border-cyan-800/60 uppercase tracking-wider">SBIR S4.04</span>
+            </div>
+            <p class="text-[11px] text-gray-400 tracking-wide">Extreme Cold Solid-State Battery Plating Observer</p>
+          </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <nav class="flex space-x-1 sm:space-x-2 bg-space-900/90 p-1.5 rounded-xl border border-gray-800/90">
+          <button id="tabBtnSim" onclick="switchTab('sim')" class="flex items-center space-x-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all text-white bg-cyan-600/30 border border-cyan-500/50 shadow-sm">
+            <i data-lucide="activity" class="w-4 h-4 text-cyan-400"></i>
+            <span class="hidden sm:inline">Telemetry HUD</span>
+          </button>
+          <button id="tabBtnPhysics" onclick="switchTab('physics')" class="flex items-center space-x-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all text-gray-400 hover:text-gray-200 hover:bg-space-800">
+            <i data-lucide="atom" class="w-4 h-4 text-violet-400"></i>
+            <span class="hidden sm:inline">Core Physics</span>
+          </button>
+          <button id="tabBtnProposal" onclick="switchTab('proposal')" class="flex items-center space-x-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all text-gray-400 hover:text-gray-200 hover:bg-space-800">
+            <i data-lucide="file-text" class="w-4 h-4 text-amber-400"></i>
+            <span class="hidden sm:inline">NASA SBIR/STTR</span>
+          </button>
+          <button id="tabBtnARR" onclick="switchTab('arr')" class="flex items-center space-x-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all text-gray-400 hover:text-gray-200 hover:bg-space-800">
+            <i data-lucide="trending-up" class="w-4 h-4 text-emerald-400"></i>
+            <span class="hidden sm:inline">Commercial ARR</span>
+          </button>
+        </nav>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main View Container -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full flex-grow">
+
+    <!-- TAB 1: LIVE SIMULATION & TELEMETRY HUD -->
+    <div id="viewSim" class="space-y-6">
+      <!-- Status Top Bar -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div class="hud-card p-3 rounded-xl border flex flex-col justify-between">
+          <span class="text-[11px] font-mono text-gray-400 uppercase tracking-wider">Ambient Temperature ($T$)</span>
+          <div class="flex items-baseline justify-between mt-1">
+            <span id="dispTemp" class="text-xl font-bold font-mono text-cyan-400">-40.0 °C</span>
+            <span class="text-[10px] text-gray-500 font-mono">233.15 K</span>
+          </div>
+          <div class="w-full bg-gray-800 h-1.5 rounded-full mt-2 overflow-hidden">
+            <div id="tempBar" class="bg-cyan-500 h-full w-[35%] transition-all duration-300"></div>
+          </div>
+        </div>
+
+        <div class="hud-card p-3 rounded-xl border flex flex-col justify-between">
+          <span class="text-[11px] font-mono text-gray-400 uppercase tracking-wider">Interfacial Drift ($v$)</span>
+          <div class="flex items-baseline justify-between mt-1">
+            <span id="dispVelocity" class="text-xl font-bold font-mono text-violet-300">4.18 μm/s</span>
+            <span id="dispVelDelta" class="text-[10px] font-mono text-emerald-400">Nominal Flux</span>
+          </div>
+          <div class="w-full bg-gray-800 h-1.5 rounded-full mt-2 overflow-hidden">
+            <div id="velBar" class="bg-violet-500 h-full w-[72%] transition-all duration-300"></div>
+          </div>
+        </div>
+
+        <div class="hud-card p-3 rounded-xl border flex flex-col justify-between">
+          <span class="text-[11px] font-mono text-gray-400 uppercase tracking-wider">Accumulated State ($Q$)</span>
+          <div class="flex items-baseline justify-between mt-1">
+            <span id="dispCharge" class="text-xl font-bold font-mono text-amber-300">142.4 mAh/g</span>
+            <span id="dispRate" class="text-[10px] font-mono text-gray-400">1.25 C rate</span>
+          </div>
+          <div class="w-full bg-gray-800 h-1.5 rounded-full mt-2 overflow-hidden">
+            <div id="chargeBar" class="bg-amber-500 h-full w-[45%] transition-all duration-300"></div>
+          </div>
+        </div>
+
+        <div class="hud-card p-3 rounded-xl border flex flex-col justify-between">
+          <span class="text-[11px] font-mono text-gray-400 uppercase tracking-wider">Observer Mode</span>
+          <div class="flex items-center justify-between mt-1">
+            <span id="statusBadge" class="px-2.5 py-1 rounded text-xs font-semibold font-mono bg-emerald-950 text-emerald-400 border border-emerald-800 flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              NORMAL DRIFT
+            </span>
+          </div>
+          <p id="observerSubtext" class="text-[10px] text-gray-400 font-mono mt-2 truncate">Galvanostatic DC Charging</p>
+        </div>
+      </div>
+
+      <!-- Main Interactive Row: Solid Electrolyte Canvas & Phase-Space Chart -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <!-- Physical Canvas View: Solid Electrolyte & Lithium Interface -->
+        <div class="lg:col-span-7 hud-card rounded-2xl p-4 flex flex-col justify-between border">
+          <div class="flex items-center justify-between pb-3 border-b border-gray-800">
+            <div class="flex items-center space-x-2">
+              <i data-lucide="layers" class="w-4 h-4 text-cyan-400"></i>
+              <h3 class="text-sm font-semibold tracking-wide text-white uppercase font-mono">Microscopic Lithium-SE Interface</h3>
+            </div>
+            <div class="flex items-center space-x-3 text-xs text-gray-400 font-mono">
+              <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-cyan-400"></span> Li⁺ Cation Drift</span>
+              <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-rose-500"></span> Metallic Nucleation</span>
+            </div>
+          </div>
+
+          <!-- Canvas Element -->
+          <div class="relative w-full aspect-[16/9] min-h-[290px] rounded-xl overflow-hidden bg-space-950 border border-gray-900 mt-3">
+            <canvas id="interfaceCanvas" class="w-full h-full block"></canvas>
+            
+            <!-- In-Canvas Overlay Alerts -->
+            <div id="canvasAlert" class="absolute top-3 left-3 px-3 py-1.5 rounded-lg bg-rose-950/80 border border-rose-700/80 text-rose-300 text-xs font-mono hidden flex items-center space-x-2 backdrop-blur">
+              <i data-lucide="alert-triangle" class="w-4 h-4 animate-bounce"></i>
+              <span>DIFFUSION BOTTLENECK: DISSOLUTION PULSE TRIGGERED</span>
+            </div>
+
+            <div class="absolute bottom-2 left-3 right-3 flex justify-between text-[11px] font-mono text-gray-400 bg-space-950/80 px-2 py-1 rounded backdrop-blur border border-gray-800/60">
+              <span>Cathode (NMC811)</span>
+              <span class="text-cyan-400 font-bold">Solid Electrolyte Bulk (LLZO / Sulfide)</span>
+              <span class="text-rose-400 font-bold">Li-Metal Anode Substrate</span>
+            </div>
+          </div>
+
+          <!-- Interactive Control Strip -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-4">
+            <div>
+              <div class="flex justify-between text-xs font-mono text-gray-400 mb-1">
+                <span>Temp ($T$):</span>
+                <span id="sliderTempVal" class="text-cyan-400 font-bold">-40 °C</span>
+              </div>
+              <input id="tempSlider" type="range" min="-70" max="25" value="-40" step="1" 
+                class="w-full h-1.5 bg-gray-800 rounded-lg appearance-none cursor-pointer accent-cyan-400">
+            </div>
+
+            <div>
+              <div class="flex justify-between text-xs font-mono text-gray-400 mb-1">
+                <span>Charge Rate:</span>
+                <span id="sliderCVal" class="text-amber-400 font-bold">1.2 C</span>
+              </div>
+              <input id="cRateSlider" type="range" min="0.2" max="3.0" value="1.2" step="0.1" 
+                class="w-full h-1.5 bg-gray-800 rounded-lg appearance-none cursor-pointer accent-amber-400">
+            </div>
+
+            <div class="flex items-end space-x-2">
+              <button id="toggleMitigationBtn" onclick="toggleMitigationMode()" class="w-full py-1.5 px-3 rounded-lg text-xs font-mono font-medium transition-all bg-violet-600/30 border border-violet-500/60 text-violet-200 hover:bg-violet-600/50 flex items-center justify-center space-x-1.5">
+                <i data-lucide="shield-alert" class="w-3.5 h-3.5"></i>
+                <span id="mitigationBtnText">Observer: Auto-Pulse Active</span>
+              </button>
+              <button onclick="resetSimulation()" class="py-1.5 px-3 rounded-lg text-xs font-mono font-medium transition-all bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700" title="Reset Simulation">
+                <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Diagnostic Phase Space Chart: Q vs v -->
+        <div class="lg:col-span-5 hud-card rounded-2xl p-4 flex flex-col justify-between border">
+          <div class="flex items-center justify-between pb-3 border-b border-gray-800">
+            <div>
+              <div class="flex items-center space-x-2">
+                <i data-lucide="compass" class="w-4 h-4 text-violet-400"></i>
+                <h3 class="text-sm font-semibold tracking-wide text-white uppercase font-mono">Phase Space Diagnostic</h3>
+              </div>
+              <p class="text-[11px] text-gray-400 font-mono">Electric Charge ($Q$) vs. Ion Drift Velocity ($v$)</p>
+            </div>
+            <span class="text-xs font-mono px-2 py-0.5 rounded bg-space-850 border border-gray-700 text-cyan-300">Live Inversion</span>
+          </div>
+
+          <div class="relative w-full h-[280px] mt-2">
+            <canvas id="phaseSpaceChart"></canvas>
+          </div>
+
+          <div class="mt-2 p-2.5 rounded-lg bg-space-950/90 border border-gray-800/80 text-[11px] font-mono text-gray-300 leading-relaxed">
+            <span class="text-amber-400 font-semibold">Diagnostic Fingerprint:</span> Ion-drift velocity stall ($v < 1.4\text{ }\mu\text{m/s}$) during monotonic charge accumulation ($Q > 150\text{ mAh/g}$) triggers automatic pulse dissolution, preventing catastrophic intergranular shorting.
+          </div>
+        </div>
+      </div>
+
+      <!-- Secondary Telemetry Plots -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Telemetry 1: Overpotential & High-Frequency EIS Resistance -->
+        <div class="hud-card rounded-2xl p-4 border">
+          <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center space-x-2">
+              <i data-lucide="line-chart" class="w-4 h-4 text-cyan-400"></i>
+              <h4 class="text-xs font-semibold text-white font-mono uppercase">Interfacial Impedance & Overpotential ($R_{\text{ct}}$ & $\eta$)</h4>
+            </div>
+            <span class="text-[10px] font-mono text-gray-500">100 kHz High-Frequency Tone</span>
+          </div>
+          <div class="h-[180px] w-full">
+            <canvas id="impedanceChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Telemetry 2: Controller Current Modality (DC vs. Bipolar Inversion Pulse) -->
+        <div class="hud-card rounded-2xl p-4 border">
+          <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center space-x-2">
+              <i data-lucide="cpu" class="w-4 h-4 text-amber-400"></i>
+              <h4 class="text-xs font-semibold text-white font-mono uppercase">Closed-Loop Current Drive Output ($I_{\text{cell}}$)</h4>
+            </div>
+            <span id="currentModeLabel" class="text-[10px] font-mono text-emerald-400">CC Mode: +120 mA</span>
+          </div>
+          <div class="h-[180px] w-full">
+            <canvas id="currentDriveChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: CORE PHYSICS & MATHEMATICAL MODEL -->
+    <div id="viewPhysics" class="hidden space-y-6">
+      <!-- Overview Banner -->
+      <div class="hud-card p-6 rounded-2xl border border-gray-800 relative overflow-hidden">
+        <div class="absolute -right-10 -bottom-10 w-64 h-64 bg-cyan-900/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="flex items-start space-x-4">
+          <div class="p-3 bg-cyan-950/80 border border-cyan-800/80 rounded-xl">
+            <i data-lucide="microscope" class="w-6 h-6 text-cyan-400"></i>
+          </div>
+          <div>
+            <h2 class="text-xl font-bold text-white tracking-wide">Solid-Electrolyte Kinetic Breakdown at Sub-Zero Regimes</h2>
+            <p class="text-sm text-gray-400 mt-1 max-w-4xl leading-relaxed">
+              In extreme planetary cold ($-40^\circ\text{C}$ to $-70^\circ\text{C}$ on Martian and Lunar surfaces), the bulk ionic conductivity of solid ceramic electrolytes (e.g., cubic garnet $\text{Li}_7\text{La}_3\text{Zr}_2\text{O}_{12}$ and argyrodite thiophosphates $\text{Li}_6\text{PS}_5\text{Cl}$) drops by over three orders of magnitude. The failure mechanism is governed by interfacial charge-transfer resistance exponential divergence, which forces non-uniform electron tunneling, sub-surface dendrite nucleation, and solid-state grain boundary propagation.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4 Deep-Tech Physics Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Card 1: Nernst-Planck & Arrhenius Transport -->
+        <div class="hud-card p-5 rounded-2xl border space-y-3">
+          <div class="flex items-center space-x-2 text-cyan-400">
+            <i data-lucide="git-commit" class="w-4 h-4"></i>
+            <h3 class="text-sm font-bold uppercase font-mono tracking-wider">1. Arrhenius Ion Drift & Nernst-Planck Transport</h3>
+          </div>
+          <p class="text-xs text-gray-300 leading-relaxed">
+            The microscopic flux $\mathbf{J}_{\text{Li}^+}$ of lithium cations driven through the solid electrolyte is dictated by combined concentration gradients and local electric field driving potentials:
+          </p>
+          <div class="formula-box">
+            $$\mathbf{J}_{\text{Li}^+} = -D(T)\nabla c - \frac{z F}{R T} D(T) c \nabla \phi$$
+          </div>
+          <p class="text-xs text-gray-300 leading-relaxed">
+            Where the cryogenic diffusion coefficient $D(T)$ obeys the Arrhenius activation energy barrier $E_a \approx 0.32\text{--}0.44\text{ eV}$:
+          </p>
+          <div class="formula-box">
+            $$D(T) = D_0 \exp\left(-\frac{E_a}{k_B T}\right), \quad v_{\text{drift}} = \mu_{\text{ion}}(T) E = \frac{z e D(T)}{k_B T} \left(-\frac{\partial \phi}{\partial x}\right)$$
+          </div>
+          <p class="text-xs text-gray-400">
+            At $233\text{ K}$, $D(T)$ is reduced by $96.8\%$ relative to $298\text{ K}$. If the applied charging current exceeds the limiting diffusion current $J_{\text{lim}} = 2 z F D c_0 / L$, ion depletion occurs at the boundary, inducing localized metallic lithium plating.
+          </p>
+        </div>
+
+        <!-- Card 2: Butler-Volmer & Interfacial Plating Nucleation -->
+        <div class="hud-card p-5 rounded-2xl border space-y-3">
+          <div class="flex items-center space-x-2 text-violet-400">
+            <i data-lucide="flame" class="w-4 h-4"></i>
+            <h3 class="text-sm font-bold uppercase font-mono tracking-wider">2. Butler-Volmer Kinetics & Critical Overpotential</h3>
+          </div>
+          <p class="text-xs text-gray-300 leading-relaxed">
+            The charge-transfer overpotential $\eta = \phi_{\text{anode}} - \phi_{\text{electrolyte}} - E_{\text{eq}}$ at the solid-electrolyte interface governs the competition between stable planar intercalation and electrodeposition:
+          </p>
+          <div class="formula-box">
+            $$j = j_0(T) \left[ \exp\left(\frac{\alpha_a F \eta}{R T}\right) - \exp\left(-\frac{\alpha_c F \eta}{R T}\right) \right]$$
+          </div>
+          <p class="text-xs text-gray-300 leading-relaxed">
+            Cryogenic temperatures crush the exchange current density $j_0(T) \propto \exp(-\Delta G^{\ddagger}/RT)$, forcing high overpotential excursions $(\eta < -120\text{ mV})$ even at low current densities ($C/5$). When local overpotential overcomes critical surface energy:
+          </p>
+          <div class="formula-box">
+            $$\Delta G_{\text{nuc}} = -\frac{4\pi r^3}{3 \Omega_{\text{Li}}} F |\eta_{\text{plating}}| + 4\pi r^2 \gamma_{\text{Li/SE}} + \frac{2\pi}{3} r^3 \sigma_{\text{mech}}$$
+          </div>
+          <p class="text-xs text-gray-400">
+            The Gibbs free energy barrier $\Delta G_{\text{nuc}}$ collapses to zero, spawning crystalline metallic whiskers that mechanically wedge through ceramic grain boundaries (Monroe-Newman breakdown).
+          </p>
+        </div>
+
+        <!-- Card 3: High-Frequency Inversion & (Q, v) Observer -->
+        <div class="hud-card p-5 rounded-2xl border space-y-3">
+          <div class="flex items-center space-x-2 text-amber-400">
+            <i data-lucide="binary" class="w-4 h-4"></i>
+            <h3 class="text-sm font-bold uppercase font-mono tracking-wider">3. State Observer Inversion Algorithm</h3>
+          </div>
+          <p class="text-xs text-gray-300 leading-relaxed">
+            Traditional BMS systems monitor cell macro-voltage $V_{\text{cell}}$, which remains deceptively flat during cold plating. AnodePlat injects micro-amplitude high-frequency sinusoidal excitation ($10\text{ kHz}\text{--}100\text{ kHz}$) to reconstruct instantaneous interfacial impedance:
+          </p>
+          <div class="formula-box">
+            $$Z(\omega) = R_{\text{SE}} + \frac{R_{\text{ct}}}{1 + (j\omega R_{\text{ct}} C_{\text{dl}})^\beta} + Z_w(\omega)$$
+          </div>
+          <p class="text-xs text-gray-300 leading-relaxed">
+            Effective ion drift velocity $v(t)$ is estimated in real-time from the extracted high-frequency interfacial transference and resistance tensor:
+          </p>
+          <div class="formula-box">
+            $$\hat{v}(t) = \frac{I(t)}{F \cdot A \cdot c_{\text{Li}^+}} \cdot \left[1 - \left(\frac{R_{\text{ct}}(t) - R_{\text{nom}}(T)}{R_{\text{critical}}(T)}\right)\right], \quad \Theta_{\text{anomaly}} = \left. \frac{\partial \hat{v}}{\partial Q} \right|_{T} \le \epsilon_{\text{threshold}}$$
+          </div>
+          <p class="text-xs text-gray-400">
+            A derivative inversion condition $\partial v / \partial Q \approx 0$ or $< 0$ provides instant, mathematically deterministic detection of plating onset $140\text{ seconds}$ before short circuits occur.
+          </p>
+        </div>
+
+        <!-- Card 4: Pulsed-Reverse Current Electro-Dissolution -->
+        <div class="hud-card p-5 rounded-2xl border space-y-3">
+          <div class="flex items-center space-x-2 text-emerald-400">
+            <i data-lucide="zap-off" class="w-4 h-4"></i>
+            <h3 class="text-sm font-bold uppercase font-mono tracking-wider">4. Dynamic Pulsed-Reverse Current Redissolution</h3>
+          </div>
+          <p class="text-xs text-gray-300 leading-relaxed">
+            Upon detection of the $(Q, v)$ trajectory plateau, the controller interrupts DC galvanostatic charging and switches to asymmetric bipolar high-rate relaxation pulses:
+          </p>
+          <div class="formula-box">
+            $$I(t) = \begin{cases} -I_{\text{strip}} & \text{for } 0 < t < \tau_{\text{reverse}} \quad (\approx 20\text{ ms}) \\ 0 & \text{for } \tau_{\text{reverse}} \le t < \tau_{\text{rest}} \quad (\approx 50\text{ ms}) \\ +I_{\text{charge}} & \text{for } \tau_{\text{rest}} \le t < T_{\text{period}} \quad (\approx 200\text{ ms}) \end{cases}$$
+          </div>
+          <p class="text-xs text-gray-300 leading-relaxed">
+            The reverse stripping overpotential reverses the electrochemical potential gradient specifically at the dendrite tip where curvature concentration concentrates field lines:
+          </p>
+          <div class="formula-box">
+            $$\mu_{\text{tip}} = \mu_0 + \frac{2\gamma \Omega_{\text{Li}}}{r_{\text{tip}}} - z F \eta_{\text{reverse}}$$
+          </div>
+          <p class="text-xs text-gray-400">
+            Enhanced chemical potential at high-curvature tips ($r_{\text{tip}} < 25\text{ nm}$) forces preferential electrochemical stripping of nascent lithium filaments, restoring bulk electrolyte planar contact without cell warming.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: NASA SBIR/STTR PROPOSAL & HARDWARE TRANSITION -->
+    <div id="viewProposal" class="hidden space-y-6">
+      <!-- SBIR/STTR Header Card -->
+      <div class="hud-card p-6 rounded-2xl border relative overflow-hidden">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-gray-800 pb-4">
+          <div>
+            <div class="flex items-center space-x-2">
+              <span class="px-2.5 py-1 rounded bg-amber-500/20 text-amber-400 border border-amber-500/40 text-xs font-mono font-bold">NASA SBIR/STTR Phase I</span>
+              <span class="text-xs font-mono text-gray-400">Topic: S4.04-1184</span>
+            </div>
+            <h2 class="text-xl font-bold text-white mt-1">Autonomous Cold-Charge Plating Observer & Interfacial Pulse Controller</h2>
+            <p class="text-xs text-gray-400 font-mono mt-0.5">High Specific Energy Solid-State Batteries for Extreme Cold Planetary Landers</p>
+          </div>
+          <div class="flex items-center gap-3 font-mono">
+            <div class="text-right">
+              <div class="text-xl font-bold text-amber-400">$225,000</div>
+              <div class="text-[11px] text-gray-400">Phase I Budget (6 Months)</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 text-xs font-mono">
+          <div class="bg-space-950 p-3 rounded-xl border border-gray-800">
+            <span class="text-gray-400 block mb-1">Target Mission Platforms:</span>
+            <span class="text-cyan-300 font-semibold">Artemis South Pole Landers, Europa Clipper Probes, Titan Sub-Surface Cryo-Drills</span>
+          </div>
+          <div class="bg-space-950 p-3 rounded-xl border border-gray-800">
+            <span class="text-gray-400 block mb-1">STTR Research Partner (30%):</span>
+            <span class="text-violet-300 font-semibold">University of Central Florida (UCF) - CATER Propulsion & Cryo-Materials Lab</span>
+          </div>
+          <div class="bg-space-950 p-3 rounded-xl border border-gray-800">
+            <span class="text-gray-400 block mb-1">Target Phase II Transition:</span>
+            <span class="text-emerald-300 font-semibold">$850,000 to $1.2M Prototype Flight Validation in Cryo-Vacuum Chambers</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Budget Allocation & University Partner Breakdown -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div class="lg:col-span-4 hud-card p-5 rounded-2xl border space-y-4">
+          <h3 class="text-sm font-bold text-white uppercase font-mono flex items-center gap-2">
+            <i data-lucide="pie-chart" class="w-4 h-4 text-amber-400"></i>
+            STTR Subcontract Breakdown
+          </h3>
+          <div class="p-3 bg-space-950 rounded-xl border border-gray-800">
+            <div class="flex justify-between items-center text-xs font-mono mb-1">
+              <span class="text-gray-400">Small Business Prime:</span>
+              <span class="text-white font-bold">$157,500 (70.0%)</span>
+            </div>
+            <div class="w-full bg-gray-800 h-1.5 rounded-full overflow-hidden">
+              <div class="bg-cyan-500 h-full w-[70%]"></div>
+            </div>
+            <div class="flex justify-between items-center text-xs font-mono mt-3 mb-1">
+              <span class="text-violet-400 font-semibold">UCF CATER Subcontract:</span>
+              <span class="text-violet-300 font-bold">$67,500 (30.0%)</span>
+            </div>
+            <div class="w-full bg-gray-800 h-1.5 rounded-full overflow-hidden">
+              <div class="bg-violet-500 h-full w-[30%]"></div>
+            </div>
+          </div>
+          <div class="text-xs text-gray-300 space-y-2 leading-relaxed">
+            <p>
+              <strong class="text-violet-300">UCF Partner Lead:</strong> Center for Advanced Turbomachinery and Energy Research (CATER).
+            </p>
+            <p>
+              <strong class="text-gray-200">UCF Testbed Access:</strong> Cryogenic high-vacuum environmental chamber ($T_{\text{min}} = -196^\circ\text{C}$), in-situ electrochemical impedance spectroscopy (10 mHz to 1 MHz), and high-resolution scanning electron microscopy (Cryo-FIB/SEM) for dendrite cross-section verification.
+            </p>
+          </div>
+        </div>
+
+        <!-- 6-Month Work Breakdown Schedule -->
+        <div class="lg:col-span-8 hud-card p-5 rounded-2xl border space-y-4">
+          <h3 class="text-sm font-bold text-white uppercase font-mono flex items-center gap-2">
+            <i data-lucide="calendar" class="w-4 h-4 text-cyan-400"></i>
+            Phase I 6-Month Technical Milestones
+          </h3>
+          <div class="space-y-3">
+            <div class="p-3 bg-space-950 rounded-xl border border-gray-800 flex items-start space-x-3">
+              <span class="px-2 py-0.5 rounded bg-cyan-900/60 text-cyan-300 font-mono text-xs font-bold border border-cyan-700/50">M1-M2</span>
+              <div>
+                <h4 class="text-xs font-bold text-white font-mono">Cryogenic Ion Drift Model & Numerical Verification</h4>
+                <p class="text-[11px] text-gray-400 mt-0.5">Calibrate Nernst-Planck and Butler-Volmer multi-physics formulations against garnet (LLZO) and thiophosphate solid-electrolyte experimental datasets at $-40^\circ\text{C}$ and $-60^\circ\text{C}$.</p>
+              </div>
+            </div>
+
+            <div class="p-3 bg-space-950 rounded-xl border border-gray-800 flex items-start space-x-3">
+              <span class="px-2 py-0.5 rounded bg-violet-900/60 text-violet-300 font-mono text-xs font-bold border border-violet-700/50">M3-M4</span>
+              <div>
+                <h4 class="text-xs font-bold text-white font-mono">Real-Time $(Q, v)$ Observer Inversion Firmware</h4>
+                <p class="text-[11px] text-gray-400 mt-0.5">Deploy embedded high-frequency impedance extraction onto automotive/aerospace ARM Cortex-R52 microcontrollers; demonstrate $v$-stall detection under synthetic noise profiles with $< 2\text{ ms}$ latency.</p>
+              </div>
+            </div>
+
+            <div class="p-3 bg-space-950 rounded-xl border border-gray-800 flex items-start space-x-3">
+              <span class="px-2 py-0.5 rounded bg-amber-900/60 text-amber-300 font-mono text-xs font-bold border border-amber-700/50">M5</span>
+              <div>
+                <h4 class="text-xs font-bold text-white font-mono">UCF In-Situ Cryo-Cell Validation & Pulse Electro-Dissolution</h4>
+                <p class="text-[11px] text-gray-400 mt-0.5">Execute 200 deep-cold fast charge cycles on custom $1\text{ Ah}$ pouch cells in UCF cryo-chambers. Prove elimination of short circuits using autonomous asymmetric reverse current pulses.</p>
+              </div>
+            </div>
+
+            <div class="p-3 bg-space-950 rounded-xl border border-gray-800 flex items-start space-x-3">
+              <span class="px-2 py-0.5 rounded bg-emerald-900/60 text-emerald-300 font-mono text-xs font-bold border border-emerald-700/50">M6</span>
+              <div>
+                <h4 class="text-xs font-bold text-white font-mono">Phase II Flight Demonstration Transition Plan</h4>
+                <p class="text-[11px] text-gray-400 mt-0.5">Final Phase I Technical Report, NASA TRL 3 to TRL 5 transition package, radiation-hardened GaN power electronics architecture, and Phase II STTR proposal submission ($1.2M).</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 4: COMMERCIAL & NATIONWIDE ARR BREAKDOWN -->
+    <div id="viewARR" class="hidden space-y-6">
+      <!-- Executive Summary Card -->
+      <div class="hud-card p-6 rounded-2xl border relative overflow-hidden">
+        <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+          <div>
+            <div class="flex items-center space-x-2">
+              <span class="px-2.5 py-1 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-xs font-mono font-bold">Commercialization Strategy</span>
+              <span class="text-xs font-mono text-gray-400">Dual-Use Civil & Aerospace SaaS</span>
+            </div>
+            <h2 class="text-xl font-bold text-white mt-1">High-Margin Civil Dual-Use Expansion Strategy</h2>
+            <p class="text-xs text-gray-400 font-mono mt-0.5">Embedded Battery Management Firmware & Cloud Fleet Diagnostics</p>
+          </div>
+          <div class="flex items-center gap-6 font-mono">
+            <div class="text-right">
+              <div class="text-2xl font-bold text-emerald-400">$218.4M</div>
+              <div class="text-[11px] text-gray-400">Total Mature Civil ARR</div>
+            </div>
+            <div class="text-right border-l border-gray-800 pl-6">
+              <div class="text-2xl font-bold text-cyan-400">$1.75B - $2.62B</div>
+              <div class="text-[11px] text-gray-400">Enterprise Valuation (8x-12x)</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-4 p-3 bg-space-950 rounded-xl border border-gray-800 text-xs text-gray-300 leading-relaxed font-sans">
+          <strong class="text-emerald-400">Executive Value Proposition:</strong> AnodePlat transforms next-generation solid-state batteries from fragile lab prototypes into all-weather, fast-charge energy systems—eliminating internal fire hazards and enabling sub-zero rapid charging without heavy thermal heating blankets or parasitic pre-conditioning loads.
+        </div>
+      </div>
+
+      <!-- ARR Distribution Table -->
+      <div class="hud-card rounded-2xl border overflow-hidden">
+        <div class="px-5 py-4 border-b border-gray-800 flex justify-between items-center">
+          <h3 class="text-sm font-bold text-white uppercase font-mono flex items-center gap-2">
+            <i data-lucide="table" class="w-4 h-4 text-emerald-400"></i>
+            Mature Nationwide Civil ARR by Vertical
+          </h3>
+          <span class="text-xs font-mono text-gray-400">Software Royalty + Telemetry Licensing</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs font-mono">
+            <thead class="bg-space-950 text-gray-400 uppercase text-[10px] tracking-wider border-b border-gray-800">
+              <tr>
+                <th class="py-3 px-4">Civil Vertical</th>
+                <th class="py-3 px-4">Target Application</th>
+                <th class="py-3 px-4">Software Runtime / SaaS Pricing</th>
+                <th class="py-3 px-4">Nationwide Asset Base</th>
+                <th class="py-3 px-4 text-right">Mature ARR ($M)</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-800/60 text-gray-300">
+              <tr class="hover:bg-space-850/50">
+                <td class="py-3 px-4 font-semibold text-white">Commercial Electric Vehicles (EVs)</td>
+                <td class="py-3 px-4">All-Weather Class 8 Long-Haul Fleet Trucks</td>
+                <td class="py-3 px-4 text-cyan-300">$180 / truck / year</td>
+                <td class="py-3 px-4">420,000 Class 8 fleet units</td>
+                <td class="py-3 px-4 text-right font-bold text-emerald-400">$75.6M</td>
+              </tr>
+              <tr class="hover:bg-space-850/50">
+                <td class="py-3 px-4 font-semibold text-white">Grid Battery Storage (BESS)</td>
+                <td class="py-3 px-4">Sub-Zero Peak Power Utility Stations</td>
+                <td class="py-3 px-4 text-cyan-300">$45 / MWh capacity / year</td>
+                <td class="py-3 px-4">1,100,000 MWh deployed assets</td>
+                <td class="py-3 px-4 text-right font-bold text-emerald-400">$49.5M</td>
+              </tr>
+              <tr class="hover:bg-space-850/50">
+                <td class="py-3 px-4 font-semibold text-white">Urban Air Mobility & eVTOL</td>
+                <td class="py-3 px-4">Cold-Weather Regional Air Shuttle Aircraft</td>
+                <td class="py-3 px-4 text-cyan-300">$3,200 / aircraft / year</td>
+                <td class="py-3 px-4">11,500 active eVTOL airframes</td>
+                <td class="py-3 px-4 text-right font-bold text-emerald-400">$36.8M</td>
+              </tr>
+              <tr class="hover:bg-space-850/50">
+                <td class="py-3 px-4 font-semibold text-white">Autonomous Arctic Mining Haulers</td>
+                <td class="py-3 px-4">Sub-Zero Surface & Underground Haulers</td>
+                <td class="py-3 px-4 text-cyan-300">$4,500 / autonomous machine / year</td>
+                <td class="py-3 px-4">6,200 heavy mining haulers</td>
+                <td class="py-3 px-4 text-right font-bold text-emerald-400">$27.9M</td>
+              </tr>
+              <tr class="hover:bg-space-850/50">
+                <td class="py-3 px-4 font-semibold text-white">Civil Planetary & Low-Earth Satellites</td>
+                <td class="py-3 px-4">Commercial Low-Earth Orbit Constellations</td>
+                <td class="py-3 px-4 text-cyan-300">$1,400 / satellite bus / year</td>
+                <td class="py-3 px-4">13,500 orbital spacecraft</td>
+                <td class="py-3 px-4 text-right font-bold text-emerald-400">$18.9M</td>
+              </tr>
+              <tr class="hover:bg-space-850/50">
+                <td class="py-3 px-4 font-semibold text-white">Remote Telecom & Arctic Stations</td>
+                <td class="py-3 px-4">Off-Grid Solar/Battery Cell Towers</td>
+                <td class="py-3 px-4 text-cyan-300">$210 / tower terminal / year</td>
+                <td class="py-3 px-4">46,000 cold-weather towers</td>
+                <td class="py-3 px-4 text-right font-bold text-emerald-400">$9.7M</td>
+              </tr>
+              <tr class="bg-space-950 font-bold border-t-2 border-gray-700">
+                <td class="py-3.5 px-4 text-emerald-400 uppercase tracking-wider" colspan="4">Total Mature Nationwide Civil ARR</td>
+                <td class="py-3.5 px-4 text-right text-base text-emerald-400 font-mono">$218.4M</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 6 Industry Deep-Dive Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <!-- 1. Commercial EVs -->
+        <div class="hud-card p-4 rounded-xl border space-y-2">
+          <div class="flex items-center space-x-2 text-cyan-400">
+            <i data-lucide="truck" class="w-4 h-4"></i>
+            <h4 class="text-xs font-bold uppercase font-mono">1. Long-Haul Fleet Electric Trucks</h4>
+          </div>
+          <p class="text-[11px] text-gray-300 leading-relaxed">
+            <strong class="text-cyan-300">Physics in 1 Sentence:</strong> High-rate Megawatt Charging System (MCS) pulses at sub-zero terminal depots induce severe $(Q, v)$ velocity divergence, forming dead lithium coatings that permanently cut range.
+          </p>
+          <p class="text-[11px] text-gray-400 leading-relaxed border-t border-gray-800/80 pt-2">
+            <strong class="text-gray-200">Why Others Missed This:</strong> Legacy OEM habits burn $12\text{--}18\%$ of the battery's energy reserve on resistive fluid pre-heaters for $45\text{ minutes}$ before charging can safely begin. AnodePlat enables immediate cold-charge without thermal delays.
+          </p>
+        </div>
+
+        <!-- 2. Utility BESS -->
+        <div class="hud-card p-4 rounded-xl border space-y-2">
+          <div class="flex items-center space-x-2 text-violet-400">
+            <i data-lucide="server" class="w-4 h-4"></i>
+            <h4 class="text-xs font-bold uppercase font-mono">2. Grid-Scale Sub-Zero BESS</h4>
+          </div>
+          <p class="text-[11px] text-gray-300 leading-relaxed">
+            <strong class="text-violet-300">Physics in 1 Sentence:</strong> Solid-electrolyte grain boundary conductivity collapse during sub-zero wind power curtailment surges triggers unmonitored soft dendrites, degrading storage life.
+          </p>
+          <p class="text-[11px] text-gray-400 leading-relaxed border-t border-gray-800/80 pt-2">
+            <strong class="text-gray-200">Why Others Missed This:</strong> Incumbents rely exclusively on bulk DC voltage thresholds that stay blind to micro-scale metallic nucleation until catastrophic thermal runaway vents the container.
+          </p>
+        </div>
+
+        <!-- 3. eVTOL Aviation -->
+        <div class="hud-card p-4 rounded-xl border space-y-2">
+          <div class="flex items-center space-x-2 text-amber-400">
+            <i data-lucide="plane" class="w-4 h-4"></i>
+            <h4 class="text-xs font-bold uppercase font-mono">3. All-Weather eVTOL Air Shuttles</h4>
+          </div>
+          <p class="text-[11px] text-gray-300 leading-relaxed">
+            <strong class="text-amber-300">Physics in 1 Sentence:</strong> Rapid $10\text{-minute}$ turnarounds at high-altitude cold vertiports push overpotentials past the critical electrodeposition threshold $\eta_{\text{plating}}$.
+          </p>
+          <p class="text-[11px] text-gray-400 leading-relaxed border-t border-gray-800/80 pt-2">
+            <strong class="text-gray-200">Why Others Missed This:</strong> Aerospace engineers oversized cooling/heating pumps, penalizing flight payload by $220\text{ kg}$; AnodePlat uses closed-loop pulse electrochemistry at firmware level with zero added mass.
+          </p>
+        </div>
+
+        <!-- 4. Arctic Mining -->
+        <div class="hud-card p-4 rounded-xl border space-y-2">
+          <div class="flex items-center space-x-2 text-emerald-400">
+            <i data-lucide="mountain" class="w-4 h-4"></i>
+            <h4 class="text-xs font-bold uppercase font-mono">4. Autonomous Arctic Mining Haulers</h4>
+          </div>
+          <p class="text-[11px] text-gray-300 leading-relaxed">
+            <strong class="text-emerald-300">Physics in 1 Sentence:</strong> Continuous regenerative braking on icy slopes injects uncontrolled charge bursts into $-45^\circ\text{C}$ solid-state pack segments, causing immediate dendrite pinholes.
+          </p>
+          <p class="text-[11px] text-gray-400 leading-relaxed border-t border-gray-800/80 pt-2">
+            <strong class="text-gray-200">Why Others Missed This:</strong> Mining operators keep haulers idling on diesel backup engines 24/7 in winter to avoid pack freeze; AnodePlat dynamically accepts cold regeneration through millisecond stripping pulses.
+          </p>
+        </div>
+
+        <!-- 5. Commercial Satellites -->
+        <div class="hud-card p-4 rounded-xl border space-y-2">
+          <div class="flex items-center space-x-2 text-blue-400">
+            <i data-lucide="satellite" class="w-4 h-4"></i>
+            <h4 class="text-xs font-bold uppercase font-mono">5. Commercial LEO Constellations</h4>
+          </div>
+          <p class="text-[11px] text-gray-300 leading-relaxed">
+            <strong class="text-blue-300">Physics in 1 Sentence:</strong> Orbit eclipse exits subject batteries to instant solar array peak charging while cell core temperatures remain at deep cryogenic equilibrium ($-65^\circ\text{C}$).
+          </p>
+          <p class="text-[11px] text-gray-400 leading-relaxed border-t border-gray-800/80 pt-2">
+            <strong class="text-gray-200">Why Others Missed This:</strong> Satellite primes use conservative $20\text{--}30\%$ depth-of-discharge derating to prevent dendrite growth; AnodePlat unlocks $85\%$ usable capacity under severe thermal cycling.
+          </p>
+        </div>
+
+        <!-- 6. Remote Telecom -->
+        <div class="hud-card p-4 rounded-xl border space-y-2">
+          <div class="flex items-center space-x-2 text-rose-400">
+            <i data-lucide="radio" class="w-4 h-4"></i>
+            <h4 class="text-xs font-bold uppercase font-mono">6. Arctic Telecom & Infrastructure</h4>
+          </div>
+          <p class="text-[11px] text-gray-300 leading-relaxed">
+            <strong class="text-rose-300">Physics in 1 Sentence:</strong> Intermittent winter micro-generation creates long, sluggish charging tails where slow solid-electrolyte diffusion bottlenecks nucleate mossy lithium.
+          </p>
+          <p class="text-[11px] text-gray-400 leading-relaxed border-t border-gray-800/80 pt-2">
+            <strong class="text-gray-200">Why Others Missed This:</strong> Telecom operators fly helicopter maintenance teams to replace shorted lithium packs every two winters; AnodePlat software autonomously runs continuous background redissolution.
+          </p>
+        </div>
+      </div>
+
+      <!-- Collaboration Callout -->
+      <div class="p-4 rounded-xl bg-gradient-to-r from-space-900 via-space-850 to-space-900 border border-gray-800 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div>
+          <h4 class="text-sm font-bold text-white">Inquire Regarding Dual-Use Licensing & Phase II Teaming</h4>
+          <p class="text-xs text-gray-400">Direct technical inquiries to the aerospace hardware & software development team.</p>
+        </div>
+        <a href="mailto:support@rfwavecode.com" class="px-4 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-mono text-xs font-bold transition-all flex items-center gap-2 shadow-lg shadow-cyan-950/50">
+          <i data-lucide="mail" class="w-4 h-4"></i>
+          support@rfwavecode.com
+        </a>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Sticky Footer -->
+  <footer class="border-t border-gray-800/80 bg-space-950/90 py-3 text-xs text-gray-500 font-mono">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center gap-2">
+      <div class="flex items-center space-x-2">
+        <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
+        <span>AnodePlat Firmware Engine • NASA SBIR Topic S4.04-1184</span>
+      </div>
+      <div class="flex space-x-6 text-[11px]">
+        <span>Single-File Build: Active</span>
+        <span>MathJax v3 TeX Ready</span>
+        <span class="text-cyan-400">TRL 4 Diagnostic Observer</span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Application Logic & Simulation Engine -->
+  <script>
+    // Tab Management Dictionary
+    const tabMapping = {
+      'sim': { viewId: 'viewSim', btnId: 'tabBtnSim' },
+      'physics': { viewId: 'viewPhysics', btnId: 'tabBtnPhysics' },
+      'proposal': { viewId: 'viewProposal', btnId: 'tabBtnProposal' },
+      'arr': { viewId: 'viewARR', btnId: 'tabBtnARR' }
+    };
+
+    function switchTab(activeKey) {
+      Object.keys(tabMapping).forEach(key => {
+        const item = tabMapping[key];
+        const viewEl = document.getElementById(item.viewId);
+        const btnEl = document.getElementById(item.btnId);
+
+        if (key === activeKey) {
+          viewEl.classList.remove('hidden');
+          btnEl.className = "flex items-center space-x-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all text-white bg-cyan-600/30 border border-cyan-500/50 shadow-sm";
+        } else {
+          viewEl.classList.add('hidden');
+          btnEl.className = "flex items-center space-x-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all text-gray-400 hover:text-gray-200 hover:bg-space-800";
+        }
+      });
+
+      // Render math when switching tabs
+      if (window.MathJax && window.MathJax.typesetPromise) {
+        window.MathJax.typesetPromise();
+      }
+
+      // Re-trigger layout adjustments for canvas & charts if entering sim
+      if (activeKey === 'sim') {
+        setTimeout(() => {
+          resizeCanvas();
+          if (phaseChart) phaseChart.resize();
+          if (impedanceChart) impedanceChart.resize();
+          if (currentChart) currentChart.resize();
+        }, 30);
+      }
+    }
+
+    // SIMULATION STATE VARIABLES
+    const simState = {
+      temp: -40.0,            // Celsius
+      cRate: 1.2,             // C
+      chargeQ: 40.0,          // mAh/g
+      velocity: 4.8,          // um/s
+      targetVelocity: 4.8,    // calculated
+      r_ct: 145.0,            // Ohms*cm^2
+      overpotential: -45.0,   // mV
+      currentDrive: 120.0,    // mA
+      isPlating: false,
+      mitigationEnabled: true,
+      pulseActive: false,
+      pulseTimer: 0,
+      dendriteGrowth: 0.0,    // 0 to 1
+      particles: [],
+      dendriteTips: []
+    };
+
+    // Chart.js instances
+    let phaseChart = null;
+    let impedanceChart = null;
+    let currentChart = null;
+
+    // Time-series history buffers
+    const maxHistory = 40;
+    const timeLabels = Array.from({ length: maxHistory }, (_, i) => `${-(maxHistory - i)}s`);
+    let rctHistory = Array(maxHistory).fill(145.0);
+    let overpotHistory = Array(maxHistory).fill(-45.0);
+    let currentHistory = Array(maxHistory).fill(120.0);
+    let phaseTrajectory = [];
+
+    // Canvas handle
+    const canvas = document.getElementById('interfaceCanvas');
+    const ctx = canvas.getContext('2d');
+
+    function resizeCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      const w = rect.width || 600;
+      const h = rect.height || 300;
+      canvas.width = w * window.devicePixelRatio;
+      canvas.height = h * window.devicePixelRatio;
+      ctx.resetTransform ? ctx.resetTransform() : ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    }
+
+    // Particle Generator
+    function initParticles() {
+      simState.particles = [];
+      const numParticles = 65;
+      for (let i = 0; i < numParticles; i++) {
+        simState.particles.push({
+          x: Math.random() * 450 + 40,
+          y: Math.random() * 200 + 40,
+          speed: Math.random() * 0.8 + 0.6,
+          radius: Math.random() * 2.0 + 1.8,
+          jitter: Math.random() * 0.4
+        });
+      }
+      // Fixed dendrite root anchors
+      simState.dendriteTips = [
+        { x: 500, y: 70, progress: 0, branch: 1 },
+        { x: 500, y: 120, progress: 0, branch: 2 },
+        { x: 500, y: 180, progress: 0, branch: 1 },
+        { x: 500, y: 220, progress: 0, branch: 2 }
+      ];
+    }
+
+    // Physics Engine Step
+    function updatePhysics() {
+      // 1. Calculate Arrhenius diffusion factor
+      const kelvin = simState.temp + 273.15;
+      const Ea = 0.38; // eV
+      const kB = 8.617e-5; // eV/K
+      const arrheniusFactor = Math.exp(-Ea / (kB * kelvin)) / Math.exp(-Ea / (kB * 298.15));
+
+      // 2. Nominal expected drift velocity
+      const nominalV = 5.8 * simState.cRate * arrheniusFactor;
+
+      // 3. Accumulate state of charge
+      if (simState.pulseActive) {
+        // Reverse pulse strips charge slightly and rests
+        simState.chargeQ -= 0.05 * simState.cRate;
+      } else {
+        simState.chargeQ += 0.18 * simState.cRate;
+      }
+      if (simState.chargeQ > 320) simState.chargeQ = 40.0;
+      if (simState.chargeQ < 20) simState.chargeQ = 20.0;
+
+      // 4. Bottleneck & Plating Criterion
+      // At low temperatures & high Q, diffusion bottlenecks stall interfacial velocity
+      const bottleneckThreshold = 135 - (simState.temp * -1.2); 
+      const isBottleneck = simState.chargeQ > bottleneckThreshold && simState.temp < -20;
+
+      if (isBottleneck && !simState.pulseActive) {
+        simState.isPlating = true;
+        simState.dendriteGrowth = Math.min(1.0, simState.dendriteGrowth + 0.015 * simState.cRate);
+        // Stalled ion drift velocity
+        simState.targetVelocity = Math.max(0.6, nominalV * (1.0 - (simState.dendriteGrowth * 0.82)));
+        simState.r_ct = 140 + (simState.dendriteGrowth * 290);
+        simState.overpotential = -50 - (simState.dendriteGrowth * 110);
+      } else if (simState.pulseActive) {
+        // Redissolving nascent dendrites via reverse stripping
+        simState.isPlating = false;
+        simState.dendriteGrowth = Math.max(0.0, simState.dendriteGrowth - 0.04);
+        simState.targetVelocity = nominalV * 0.95;
+        simState.r_ct = Math.max(145, simState.r_ct - 12);
+        simState.overpotential = 35.0; // Positive stripping overpotential
+      } else {
+        // Normal drift
+        simState.isPlating = false;
+        simState.dendriteGrowth = Math.max(0.0, simState.dendriteGrowth - 0.01);
+        simState.targetVelocity = nominalV;
+        simState.r_ct = 130 + (25 - simState.temp) * 1.5;
+        simState.overpotential = -40 - (simState.cRate * 12);
+      }
+
+      // Smooth velocity transitions
+      simState.velocity += (simState.targetVelocity - simState.velocity) * 0.15;
+
+      // Closed-Loop Mitigation Automation
+      if (simState.mitigationEnabled) {
+        // Trigger condition: Ion-drift velocity stall (v drops below hazard corridor) while Q is high
+        if (simState.velocity < 1.4 && simState.chargeQ > 120 && !simState.pulseActive) {
+          simState.pulseActive = true;
+          simState.pulseTimer = 22; // ~22 cycles of pulsed reverse mitigation
+        }
+      }
+
+      if (simState.pulseActive) {
+        simState.pulseTimer--;
+        // Toggle current between reverse dissolution (-180mA) and zero relaxation
+        simState.currentDrive = (simState.pulseTimer % 4 < 2) ? -180.0 : 0.0;
+        if (simState.pulseTimer <= 0) {
+          simState.pulseActive = false;
+          simState.currentDrive = simState.cRate * 100;
+        }
+      } else {
+        simState.currentDrive = simState.cRate * 100;
+      }
+
+      // Update Phase Trajectory History
+      phaseTrajectory.push({ x: Number(simState.chargeQ.toFixed(1)), y: Number(simState.velocity.toFixed(2)) });
+      if (phaseTrajectory.length > 55) {
+        phaseTrajectory.shift();
+      }
+
+      // Update Time-series arrays
+      rctHistory.push(simState.r_ct);
+      rctHistory.shift();
+      overpotHistory.push(simState.overpotential);
+      overpotHistory.shift();
+      currentHistory.push(simState.currentDrive);
+      currentHistory.shift();
+    }
+
+    // Render Physical Solid-Electrolyte Canvas
+    function drawCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      const w = rect.width || 600;
+      const h = rect.height || 300;
+
+      ctx.clearRect(0, 0, w, h);
+
+      // Section Boundaries
+      const cathodeW = w * 0.12;
+      const anodeX = w * 0.84;
+      const seWidth = anodeX - cathodeW;
+
+      // 1. Draw Cathode Region (Left)
+      const gradCathode = ctx.createLinearGradient(0, 0, cathodeW, 0);
+      gradCathode.addColorStop(0, '#0c1a2e');
+      gradCathode.addColorStop(1, '#162b48');
+      ctx.fillStyle = gradCathode;
+      ctx.fillRect(0, 0, cathodeW, h);
+
+      ctx.strokeStyle = '#1e3a5f';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(0, 0, cathodeW, h);
+
+      // 2. Draw Solid Electrolyte Bulk (Center)
+      const gradSE = ctx.createLinearGradient(cathodeW, 0, anodeX, 0);
+      gradSE.addColorStop(0, '#040914');
+      gradSE.addColorStop(0.5, '#071224');
+      gradSE.addColorStop(1, '#050c18');
+      ctx.fillStyle = gradSE;
+      ctx.fillRect(cathodeW, 0, seWidth, h);
+
+      // Grain boundary network lines in solid electrolyte
+      ctx.strokeStyle = 'rgba(30, 58, 95, 0.35)';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      for (let x = cathodeW + 40; x < anodeX - 20; x += 55) {
+        ctx.moveTo(x, 0);
+        ctx.bezierCurveTo(x + 20, h * 0.3, x - 15, h * 0.7, x + 10, h);
+      }
+      ctx.stroke();
+
+      // 3. Draw Anode Lithium Metal Substrate (Right)
+      const gradAnode = ctx.createLinearGradient(anodeX, 0, w, 0);
+      gradAnode.addColorStop(0, '#2a1215');
+      gradAnode.addColorStop(1, '#17090b');
+      ctx.fillStyle = gradAnode;
+      ctx.fillRect(anodeX, 0, w - anodeX, h);
+
+      ctx.strokeStyle = '#5c1d24';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(anodeX, 0, w - anodeX, h);
+
+      // 4. Interfacial Boundary Layer (SEI / Interface)
+      ctx.strokeStyle = simState.isPlating ? 'rgba(239, 68, 68, 0.8)' : (simState.pulseActive ? 'rgba(139, 92, 246, 0.9)' : 'rgba(6, 182, 212, 0.5)');
+      ctx.lineWidth = 2.5;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(anodeX, 0);
+      ctx.lineTo(anodeX, h);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // 5. Render Lithium Dendrites growing from Anode into SE Bulk
+      if (simState.dendriteGrowth > 0.02) {
+        ctx.strokeStyle = simState.pulseActive ? '#c084fc' : '#ef4444';
+        ctx.lineWidth = 2.8;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        const maxReach = seWidth * 0.65;
+        const currentReach = simState.dendriteGrowth * maxReach;
+
+        // Draw multiple branched filaments
+        [h * 0.22, h * 0.45, h * 0.68, h * 0.85].forEach((rootY, idx) => {
+          ctx.beginPath();
+          ctx.moveTo(anodeX, rootY);
+          const tipX = anodeX - currentReach * (0.7 + idx * 0.1);
+          const cp1X = anodeX - currentReach * 0.35;
+          const cp1Y = rootY + (idx % 2 === 0 ? 18 : -18);
+          const cp2X = anodeX - currentReach * 0.7;
+          const cp2Y = rootY + (idx % 2 === 0 ? -12 : 14);
+
+          ctx.bezierCurveTo(cp1X, cp1Y, cp2X, cp2Y, tipX, rootY + (idx % 2 === 0 ? 8 : -8));
+          ctx.stroke();
+
+          // Sub-branches
+          if (simState.dendriteGrowth > 0.35) {
+            ctx.beginPath();
+            ctx.moveTo(cp1X, cp1Y);
+            ctx.lineTo(cp1X - 25 * simState.dendriteGrowth, cp1Y + (idx % 2 === 0 ? -20 : 20));
+            ctx.stroke();
+          }
+
+          // Glowing tip nucleation point
+          ctx.fillStyle = simState.pulseActive ? '#e9d5ff' : '#fca5a5';
+          ctx.beginPath();
+          ctx.arc(tipX, rootY + (idx % 2 === 0 ? 8 : -8), 3 + simState.dendriteGrowth * 2.5, 0, Math.PI * 2);
+          ctx.fill();
+        });
+
+        // Dissolution energy flash rings if pulsed reverse is active
+        if (simState.pulseActive) {
+          ctx.strokeStyle = 'rgba(168, 85, 247, 0.4)';
+          ctx.lineWidth = 1.5;
+          [h * 0.22, h * 0.45, h * 0.68, h * 0.85].forEach((rootY) => {
+            ctx.beginPath();
+            ctx.arc(anodeX - currentReach * 0.8, rootY, (Date.now() / 30) % 20 + 4, 0, Math.PI * 2);
+            ctx.stroke();
+          });
+        }
+      }
+
+      // 6. Draw Moving Li+ Cation Particles
+      simState.particles.forEach((p) => {
+        // Particles move towards Anode (left to right) during charge; reverse during pulse
+        const dir = simState.pulseActive ? -1.4 : 1.0;
+        p.x += dir * p.speed * (simState.velocity / 3.0);
+        p.y += (Math.random() - 0.5) * p.jitter;
+
+        // Wrap particles
+        if (p.x > anodeX - 5) {
+          p.x = cathodeW + 5;
+          p.y = Math.random() * (h - 40) + 20;
+        } else if (p.x < cathodeW + 2) {
+          p.x = anodeX - 10;
+        }
+
+        // Particle drawing
+        ctx.fillStyle = simState.pulseActive ? '#c084fc' : '#22d3ee';
+        ctx.shadowColor = simState.pulseActive ? '#a855f7' : '#06b6d4';
+        ctx.shadowBlur = 6;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0; // reset
+      });
+
+      // 7. Pulse active strobe banner
+      if (simState.pulseActive) {
+        ctx.fillStyle = 'rgba(139, 92, 246, 0.08)';
+        ctx.fillRect(cathodeW, 0, seWidth, h);
+      }
+    }
+
+    // Update Text HUD and Indicators
+    function updateHUD() {
+      document.getElementById('dispTemp').innerText = `${simState.temp.toFixed(1)} °C`;
+      document.getElementById('sliderTempVal').innerText = `${simState.temp} °C`;
+      document.getElementById('dispVelocity').innerText = `${simState.velocity.toFixed(2)} μm/s`;
+      document.getElementById('dispCharge').innerText = `${simState.chargeQ.toFixed(1)} mAh/g`;
+      document.getElementById('dispRate').innerText = `${simState.cRate.toFixed(1)} C rate`;
+      document.getElementById('sliderCVal').innerText = `${simState.cRate.toFixed(1)} C`;
+
+      // Progress bars
+      const tempPct = Math.min(100, Math.max(0, ((simState.temp - (-70)) / (25 - (-70))) * 100));
+      document.getElementById('tempBar').style.width = `${tempPct}%`;
+      const velPct = Math.min(100, Math.max(0, (simState.velocity / 6.5) * 100));
+      document.getElementById('velBar').style.width = `${velPct}%`;
+      const chargePct = Math.min(100, Math.max(0, (simState.chargeQ / 300) * 100));
+      document.getElementById('chargeBar').style.width = `${chargePct}%`;
+
+      const badge = document.getElementById('statusBadge');
+      const subtext = document.getElementById('observerSubtext');
+      const alertBox = document.getElementById('canvasAlert');
+      const currentModeLabel = document.getElementById('currentModeLabel');
+
+      if (simState.pulseActive) {
+        badge.className = "px-2.5 py-1 rounded text-xs font-semibold font-mono bg-violet-950 text-violet-300 border border-violet-800 flex items-center gap-1.5 animate-pulse";
+        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-violet-400"></span> REVERSE PULSE DISSOLUTION`;
+        subtext.innerText = `Stripping pulse active: ${simState.currentDrive.toFixed(0)} mA`;
+        alertBox.classList.remove('hidden');
+        alertBox.innerHTML = `<i data-lucide="zap" class="w-4 h-4 text-violet-300 animate-spin"></i><span>CLOSED-LOOP REVERSE PULSE: DISSOLVING LITHIUM CLUSTERS</span>`;
+        currentModeLabel.className = "text-[10px] font-mono text-violet-400";
+        currentModeLabel.innerText = `PULSE ACTIVE: ${simState.currentDrive.toFixed(0)} mA`;
+      } else if (simState.isPlating) {
+        badge.className = "px-2.5 py-1 rounded text-xs font-semibold font-mono bg-rose-950 text-rose-300 border border-rose-800 flex items-center gap-1.5 animate-pulse";
+        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-rose-500"></span> PLATING ANOMALY (v-STALL)`;
+        subtext.innerText = `Diffusion bottleneck! Overpotential: ${simState.overpotential.toFixed(0)} mV`;
+        alertBox.classList.remove('hidden');
+        alertBox.innerHTML = `<i data-lucide="alert-triangle" class="w-4 h-4 text-rose-400 animate-bounce"></i><span>HAZARD: ION VELOCITY STALL & DENDRITE PROPAGATION</span>`;
+        currentModeLabel.className = "text-[10px] font-mono text-rose-400";
+        currentModeLabel.innerText = `CC STALL: +${simState.currentDrive.toFixed(0)} mA`;
+      } else {
+        badge.className = "px-2.5 py-1 rounded text-xs font-semibold font-mono bg-emerald-950 text-emerald-400 border border-emerald-800 flex items-center gap-1.5";
+        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400"></span> NORMAL ION DRIFT`;
+        subtext.innerText = `Interfacial flux nominal. Impedance: ${simState.r_ct.toFixed(0)} Ω·cm²`;
+        alertBox.classList.add('hidden');
+        currentModeLabel.className = "text-[10px] font-mono text-emerald-400";
+        currentModeLabel.innerText = `CC NORMAL: +${simState.currentDrive.toFixed(0)} mA`;
+      }
+      lucide.createIcons();
+    }
+
+    // Chart.js Setup
+    function initCharts() {
+      // 1. Phase Space Chart: Q vs v
+      const ctxPhase = document.getElementById('phaseSpaceChart').getContext('2d');
+
+      // Nominal baseline curve corridor
+      const nominalPoints = [];
+      for (let q = 0; q <= 300; q += 20) {
+        nominalPoints.push({ x: q, y: Math.max(2.8, 4.8 - (q * 0.005)) });
+      }
+
+      // Anomaly hazard threshold boundary
+      const hazardBoundary = [
+        { x: 0, y: 1.4 },
+        { x: 300, y: 1.4 }
+      ];
+
+      phaseChart = new Chart(ctxPhase, {
+        type: 'scatter',
+        data: {
+          datasets: [
+            {
+              label: 'Live (Q, v) Trajectory',
+              data: phaseTrajectory,
+              borderColor: '#06b6d4',
+              backgroundColor: 'rgba(6, 182, 212, 0.8)',
+              showLine: true,
+              borderWidth: 2.5,
+              tension: 0.2,
+              pointRadius: (ctx) => (ctx.dataIndex === ctx.dataset.data.length - 1 ? 6 : 2),
+              pointBackgroundColor: (ctx) => (ctx.dataIndex === ctx.dataset.data.length - 1 ? '#ef4444' : '#06b6d4'),
+              pointBorderColor: '#ffffff',
+              order: 1
+            },
+            {
+              label: 'Nominal Intercalation Corridor',
+              data: nominalPoints,
+              borderColor: 'rgba(52, 211, 153, 0.4)',
+              borderDash: [5, 5],
+              showLine: true,
+              pointRadius: 0,
+              fill: false,
+              order: 3
+            },
+            {
+              label: 'Plating Hazard Zone (v < 1.4 μm/s)',
+              data: hazardBoundary,
+              borderColor: 'rgba(239, 68, 68, 0.6)',
+              borderDash: [4, 4],
+              showLine: true,
+              pointRadius: 0,
+              fill: {
+                target: 'origin',
+                above: 'rgba(239, 68, 68, 0.12)'
+              },
+              order: 2
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,
+          plugins: {
+            legend: {
+              labels: {
+                color: '#94a3b8',
+                font: { family: 'JetBrains Mono', size: 10 },
+                boxWidth: 12
+              }
+            },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => `Q: ${ctx.parsed.x} mAh/g, v: ${ctx.parsed.y} μm/s`
+              }
+            }
+          },
+          scales: {
+            x: {
+              title: {
+                display: true,
+                text: 'Electric Charge Q (mAh/g)',
+                color: '#cbd5e1',
+                font: { family: 'JetBrains Mono', size: 10 }
+              },
+              min: 0,
+              max: 300,
+              grid: { color: 'rgba(30, 41, 59, 0.5)' },
+              ticks: { color: '#64748b', font: { family: 'JetBrains Mono', size: 10 } }
+            },
+            y: {
+              title: {
+                display: true,
+                text: 'Drift Velocity v (μm/s)',
+                color: '#cbd5e1',
+                font: { family: 'JetBrains Mono', size: 10 }
+              },
+              min: 0,
+              max: 6.5,
+              grid: { color: 'rgba(30, 41, 59, 0.5)' },
+              ticks: { color: '#64748b', font: { family: 'JetBrains Mono', size: 10 } }
+            }
+          }
+        }
+      });
+
+      // 2. Impedance & Overpotential Chart
+      const ctxImpedance = document.getElementById('impedanceChart').getContext('2d');
+      impedanceChart = new Chart(ctxImpedance, {
+        type: 'line',
+        data: {
+          labels: timeLabels,
+          datasets: [
+            {
+              label: 'R_ct (Ω·cm²)',
+              data: rctHistory,
+              borderColor: '#f59e0b',
+              backgroundColor: 'rgba(245, 158, 11, 0.1)',
+              yAxisID: 'yR',
+              borderWidth: 2,
+              pointRadius: 0,
+              tension: 0.3
+            },
+            {
+              label: 'Overpotential η (mV)',
+              data: overpotHistory,
+              borderColor: '#8b5cf6',
+              borderDash: [3, 3],
+              yAxisID: 'yEta',
+              borderWidth: 1.8,
+              pointRadius: 0,
+              tension: 0.3
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,
+          plugins: {
+            legend: {
+              labels: { color: '#94a3b8', font: { family: 'JetBrains Mono', size: 10 }, boxWidth: 10 }
+            }
+          },
+          scales: {
+            x: {
+              grid: { color: 'rgba(30, 41, 59, 0.3)' },
+              ticks: { color: '#64748b', font: { family: 'JetBrains Mono', size: 9 }, maxTicksLimit: 6 }
+            },
+            yR: {
+              type: 'linear',
+              position: 'left',
+              title: { display: true, text: 'R_ct (Ω·cm²)', color: '#f59e0b', font: { size: 9 } },
+              min: 80,
+              max: 480,
+              grid: { color: 'rgba(30, 41, 59, 0.3)' },
+              ticks: { color: '#f59e0b', font: { size: 9 } }
+            },
+            yEta: {
+              type: 'linear',
+              position: 'right',
+              title: { display: true, text: 'η (mV)', color: '#8b5cf6', font: { size: 9 } },
+              min: -180,
+              max: 80,
+              grid: { drawOnChartArea: false },
+              ticks: { color: '#8b5cf6', font: { size: 9 } }
+            }
+          }
+        }
+      });
+
+      // 3. Current Drive Chart
+      const ctxCurrent = document.getElementById('currentDriveChart').getContext('2d');
+      currentChart = new Chart(ctxCurrent, {
+        type: 'line',
+        data: {
+          labels: timeLabels,
+          datasets: [
+            {
+              label: 'Cell Drive Current I_cell (mA)',
+              data: currentHistory,
+              borderColor: '#10b981',
+              backgroundColor: 'rgba(16, 185, 129, 0.1)',
+              borderWidth: 2,
+              pointRadius: 0,
+              fill: true,
+              stepped: true
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,
+          plugins: {
+            legend: {
+              labels: { color: '#94a3b8', font: { family: 'JetBrains Mono', size: 10 }, boxWidth: 10 }
+            }
+          },
+          scales: {
+            x: {
+              grid: { color: 'rgba(30, 41, 59, 0.3)' },
+              ticks: { color: '#64748b', font: { family: 'JetBrains Mono', size: 9 }, maxTicksLimit: 6 }
+            },
+            y: {
+              title: { display: true, text: 'Current (mA)', color: '#10b981', font: { size: 9 } },
+              min: -220,
+              max: 250,
+              grid: { color: 'rgba(30, 41, 59, 0.3)' },
+              ticks: { color: '#64748b', font: { size: 9 } }
+            }
+          }
+        }
+      });
+    }
+
+    // Toggle Autonomous Mitigation Mode
+    function toggleMitigationMode() {
+      simState.mitigationEnabled = !simState.mitigationEnabled;
+      const btn = document.getElementById('toggleMitigationBtn');
+      const text = document.getElementById('mitigationBtnText');
+      if (simState.mitigationEnabled) {
+        btn.className = "w-full py-1.5 px-3 rounded-lg text-xs font-mono font-medium transition-all bg-violet-600/30 border border-violet-500/60 text-violet-200 hover:bg-violet-600/50 flex items-center justify-center space-x-1.5";
+        text.innerText = "Observer: Auto-Pulse Active";
+      } else {
+        btn.className = "w-full py-1.5 px-3 rounded-lg text-xs font-mono font-medium transition-all bg-rose-950/40 border border-rose-700/60 text-rose-300 hover:bg-rose-900/50 flex items-center justify-center space-x-1.5";
+        text.innerText = "Observer: Manual Only (Danger)";
+      }
+    }
+
+    // Reset Simulation Function
+    function resetSimulation() {
+      simState.chargeQ = 40.0;
+      simState.dendriteGrowth = 0.0;
+      simState.isPlating = false;
+      simState.pulseActive = false;
+      simState.pulseTimer = 0;
+      phaseTrajectory.length = 0;
+      initParticles();
+      updateHUD();
+    }
+
+    // Slider Event Listeners
+    document.getElementById('tempSlider').addEventListener('input', (e) => {
+      simState.temp = parseFloat(e.target.value);
+    });
+
+    document.getElementById('cRateSlider').addEventListener('input', (e) => {
+      simState.cRate = parseFloat(e.target.value);
+    });
+
+    // Window Resize Handling
+    window.addEventListener('resize', () => {
+      resizeCanvas();
+    });
+
+    // Main Animation & Physics Loop
+    let tickCount = 0;
+    function mainLoop() {
+      updatePhysics();
+      drawCanvas();
+      updateHUD();
+
+      // Throttled Chart Updates (every 3 ticks) to maintain 60 FPS UI responsiveness
+      tickCount++;
+      if (tickCount % 3 === 0) {
+        if (phaseChart) {
+          phaseChart.data.datasets[0].data = phaseTrajectory;
+          phaseChart.update('none');
+        }
+        if (impedanceChart) {
+          impedanceChart.data.datasets[0].data = rctHistory;
+          impedanceChart.data.datasets[1].data = overpotHistory;
+          impedanceChart.update('none');
+        }
+        if (currentChart) {
+          currentChart.data.datasets[0].data = currentHistory;
+          currentChart.update('none');
+        }
+      }
+
+      requestAnimationFrame(mainLoop);
+    }
+
+    // Startup Initialization
+    window.onload = function () {
+      lucide.createIcons();
+      resizeCanvas();
+      initParticles();
+      initCharts();
+      // Ensure MathJax renders formulas on first load
+      if (window.MathJax && window.MathJax.typesetPromise) {
+        window.MathJax.typesetPromise();
+      }
+      // Start loop
+      requestAnimationFrame(mainLoop);
+    };
+  </script>
+</body>
+</html>
